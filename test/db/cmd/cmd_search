@@ -135,6 +135,7 @@ FILE=bins/elf/ioli/crackme0x00
 CMDS=<<EOF
 e io.va=false
 s 0
+e search.in=file
 e search.from=0
 e search.to=0x00000050
 / ELF
@@ -150,6 +151,7 @@ CMDS=<<EOF
 e scr.color=false
 e io.va=false
 s 0x1000
+e search.in=file
 e search.from=0
 e search.to=0x50
 / ELF
@@ -236,6 +238,7 @@ FILE=bins/elf/ioli/crackme0x00
 CMDS=<<EOF
 e io.va=false
 s 0
+e search.in=file
 e search.from=0
 e search.to=0x50
 /a xor al, 0x80
@@ -251,6 +254,7 @@ FILE=bins/elf/ioli/crackme0x00
 CMDS=<<EOF
 e io.va=false
 s 0
+e search.in=file
 e search.from=0
 e search.to=0x50
 /a xor al, 0x80
@@ -343,6 +347,7 @@ FILE=bins/elf/ioli/crackme0x00
 CMDS=<<EOF
 e io.va=false
 s 0x1000
+e search.in=file
 e search.from=0
 e search.to=0x00000050
 /a xor al, 0x80
@@ -358,6 +363,7 @@ FILE=bins/elf/ioli/crackme0x00
 CMDS=<<EOF
 e io.va=false
 s 0x1000
+e search.in=file
 e search.from=0
 e search.to=0x00000050
 /x 3480
@@ -387,6 +393,7 @@ FILE=bins/elf/ioli/crackme0x00
 CMDS=<<EOF
 e io.va=false
 s 0
+e search.in=file
 e search.from=0
 e search.to=0x00000050
 /at xor
@@ -402,6 +409,7 @@ FILE=bins/elf/ioli/crackme0x00
 CMDS=<<EOF
 e io.va=false
 s 0x1000
+e search.in=file
 e search.from=0
 e search.to=0x00000050
 /at xor
@@ -560,6 +568,7 @@ FILE=bins/pe/standard.exe
 CMDS=<<EOF
 e io.va=false
 s 0
+e search.in=file
 e search.from=0
 e search.to=0x10
 /m
@@ -574,6 +583,7 @@ FILE=bins/pe/standard.exe
 CMDS=<<EOF
 e io.va=false
 s 0x1000
+e search.in=file
 e search.from=0
 e search.to=0x10
 /m
@@ -619,6 +629,7 @@ FILE=malloc://1024
 CMDS=<<EOF
 w ABCD @ 0x100
 s 0x1000
+e search.in=raw
 e search.from=0
 e search.to=0x200
 /x 41424344
@@ -632,6 +643,7 @@ NAME=/m search seek
 FILE=bins/pe/standard.exe
 CMDS=<<EOF
 e io.va=false
+e search.in=file
 s 0x1000
 /m~[0]
 s
@@ -798,6 +810,7 @@ NAME=/x search seek
 FILE=bins/pe/standard.exe
 CMDS=<<EOF
 e io.va=false
+e search.in=file
 s 0x1000
 /x 9090cd80
 s
@@ -1235,5 +1248,49 @@ EXPECT=<<EOF
 0x0000000c hit2_0 57006f0072006c006400
 [{"offset":12,"type":"hexpair","data":"57006f0072006c006400"}]
 [{"offset":12,"type":"hexpair","data":"57006f0072006c006400"}]
+EOF
+RUN
+
+NAME=Check boundaries via %B search.in
+FILE=bins/elf/hello_world
+CMDS=<<EOF
+iSt:perm/str/x
+%Bt @e:search.in=code
+%Bt @e:search.in=bin.sections.x
+%Bt @e:search.in=io.sky.x
+%Bt @e:search.in=block @! 512
+%Bt @e:search.in=raw
+EOF
+EXPECT=<<EOF
+paddr      size  vaddr      vsize align perm name     type     flags         
+-----------------------------------------------------------------------------
+0x00000608 0x17  0x00000608 0x17  0x0   -r-x .init    PROGBITS alloc,execute
+0x00000620 0x70  0x00000620 0x70  0x0   -r-x .plt     PROGBITS alloc,execute
+0x00000690 0x8   0x00000690 0x8   0x0   -r-x .plt.got PROGBITS alloc,execute
+0x000006a0 0x222 0x000006a0 0x222 0x0   -r-x .text    PROGBITS alloc,execute
+0x000008c4 0x9   0x000008c4 0x9   0x0   -r-x .fini    PROGBITS alloc,execute
+from  to    size perms 
+-----------------------
+0x608 0x61f 23   r-x
+0x620 0x690 112  r-x
+0x690 0x698 8    r-x
+0x6a0 0x8c2 546  r-x
+0x8c4 0x8cd 9    r-x
+from  to    size perms 
+-----------------------
+0x608 0x61f 23   r-x
+0x620 0x690 112  r-x
+0x690 0x698 8    r-x
+0x6a0 0x8c2 546  r-x
+0x8c4 0x8cd 9    r-x
+from to    size perms 
+----------------------
+0x0  0xa28 2600 r-x
+from  to    size perms 
+-----------------------
+0x6a0 0x8a0 512  rwx
+from to     size perms 
+-----------------------
+0x0  0x2148 8520 rwx
 EOF
 RUN
