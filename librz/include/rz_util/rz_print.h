@@ -231,9 +231,8 @@ RZ_API int rz_print_row_at_off(RzPrint *p, ut32 offset);
 
 // WIP
 RZ_API void rz_print_set_screenbounds(RzPrint *p, ut64 addr);
-RZ_API char *rz_print_json_indent(const char *s, bool color, const char *tab, const char **colors);
+RZ_API RZ_OWN char *rz_print_json_indent(RZ_NULLABLE const char *s, bool color, const char *tab, RZ_NULLABLE const char **palette);
 RZ_API char *rz_print_json_human(const char *s);
-RZ_API char *rz_print_json_path(const char *s, int pos);
 
 RZ_API RZ_OWN RzStrBuf *rz_print_colorize_asm_str(RZ_BORROW RzPrint *p, const RzAsmTokenString *toks);
 RZ_API void rz_print_colored_help_option(const char *option, const char *arg, const char *description, size_t maxOptionAndArgLength);
