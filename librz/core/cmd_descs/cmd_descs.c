@@ -46,6 +46,7 @@ static const RzCmdDescDetail analysis_hint_set_val_details[2];
 static const RzCmdDescDetail analysis_hint_set_optype_details[2];
 static const RzCmdDescDetail analysis_hint_set_immbase_details[3];
 static const RzCmdDescDetail analysis_hint_set_offset_details[2];
+static const RzCmdDescDetail analyze_esil_insn_access_details[4];
 static const RzCmdDescDetail cmd_cmp_unified_details[2];
 static const RzCmdDescDetail cw_details[2];
 static const RzCmdDescDetail cmd_debug_list_bp_details[2];
@@ -316,6 +317,15 @@ static const RzCmdDescArg analysis_syscall_dump_assembly_args[2];
 static const RzCmdDescArg analysis_syscall_dump_c_args[2];
 static const RzCmdDescArg analysis_syscall_name_args[2];
 static const RzCmdDescArg analysis_syscall_number_args[2];
+static const RzCmdDescArg analyze_esil_eval_expr_args[2];
+static const RzCmdDescArg analyze_esil_set_pc_args[2];
+static const RzCmdDescArg analyze_esil_sdb_query_args[2];
+static const RzCmdDescArg analyze_esil_eval_opcode_expr_args[2];
+static const RzCmdDescArg analyze_esil_emu_fcn_args[2];
+static const RzCmdDescArg analyze_esil_emu_fcn_find_args_args[2];
+static const RzCmdDescArg analyze_esil_int_list_load_args[2];
+static const RzCmdDescArg analyze_esil_int_remove_args[2];
+static const RzCmdDescArg analyze_esil_insn_access_args[4];
 static const RzCmdDescArg block_args[2];
 static const RzCmdDescArg block_decrease_args[2];
 static const RzCmdDescArg block_increase_args[2];
@@ -6438,6 +6448,220 @@ static const RzCmdDescArg list_plugins_args[] = {
 static const RzCmdDescHelp list_plugins_help = {
 	.summary = "List all asm/analysis plugins (e asm.arch=?)",
 	.args = list_plugins_args,
+};
+
+static const RzCmdDescHelp ae_help = {
+	.summary = "ESIL analysis commands",
+};
+static const RzCmdDescArg analyze_esil_eval_expr_args[] = {
+	{
+		.name = "expr",
+		.type = RZ_CMD_ARG_TYPE_STRING,
+		.flags = RZ_CMD_ARG_FLAG_LAST,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_eval_expr_help = {
+	.summary = "Analyze all flags starting with sym. and entry",
+	.args = analyze_esil_eval_expr_args,
+};
+
+static const RzCmdDescArg analyze_esil_expr_help_args[] = {
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_expr_help_help = {
+	.summary = "Show ESIL help.",
+	.args = analyze_esil_expr_help_args,
+};
+
+static const RzCmdDescArg analyze_esil_emulate_block_args[] = {
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_emulate_block_help = {
+	.summary = "Emulate current block with ESIL.",
+	.args = analyze_esil_emulate_block_args,
+};
+
+static const RzCmdDescArg analyze_esil_set_pc_args[] = {
+	{
+		.name = "addr",
+		.type = RZ_CMD_ARG_TYPE_NUM,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_set_pc_help = {
+	.summary = "Set ESIL PC to given address.",
+	.args = analyze_esil_set_pc_args,
+};
+
+static const RzCmdDescHelp aek_help = {
+	.summary = "SDB queries on ESIL info (emulation statistics).",
+};
+static const RzCmdDescArg analyze_esil_sdb_query_args[] = {
+	{
+		.name = "query",
+		.type = RZ_CMD_ARG_TYPE_STRING,
+		.flags = RZ_CMD_ARG_FLAG_LAST,
+		.default_value = "123*",
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_sdb_query_help = {
+	.summary = "Perform sdb query on ESIL info.",
+	.args = analyze_esil_sdb_query_args,
+};
+
+static const RzCmdDescArg analyze_esil_sdb_reset_args[] = {
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_sdb_reset_help = {
+	.summary = "Resets the ESIL info sdb instance.",
+	.args = analyze_esil_sdb_reset_args,
+};
+
+static const RzCmdDescArg analyze_esil_eval_opcode_expr_args[] = {
+	{
+		.name = "bytes",
+		.type = RZ_CMD_ARG_TYPE_STRING,
+		.flags = RZ_CMD_ARG_FLAG_LAST,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_eval_opcode_expr_help = {
+	.summary = "Emulate the instruction encoded in the given bytes with ESIL.",
+	.args = analyze_esil_eval_opcode_expr_args,
+};
+
+static const RzCmdDescHelp aef_help = {
+	.summary = "Emulate functions with ESIL.",
+};
+static const RzCmdDescArg analyze_esil_emu_fcn_args[] = {
+	{
+		.name = "addr",
+		.type = RZ_CMD_ARG_TYPE_NUM,
+		.optional = true,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_emu_fcn_help = {
+	.summary = "Emulate the function at given or current offset with ESIL.",
+	.args = analyze_esil_emu_fcn_args,
+};
+
+static const RzCmdDescArg analyze_esil_emu_fcn_find_args_args[] = {
+	{
+		.name = "addr",
+		.type = RZ_CMD_ARG_TYPE_NUM,
+		.optional = true,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_emu_fcn_find_args_help = {
+	.summary = "Emulate function at given or current offset to find arguments with ESIL.",
+	.args = analyze_esil_emu_fcn_find_args_args,
+};
+
+static const RzCmdDescHelp ael_help = {
+	.summary = "ESIL interrupt commands.",
+};
+static const RzCmdDescArg analyze_esil_int_list_load_args[] = {
+	{
+		.name = "file",
+		.type = RZ_CMD_ARG_TYPE_STRING,
+		.flags = RZ_CMD_ARG_FLAG_LAST,
+		.optional = true,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_int_list_load_help = {
+	.summary = "List ESIL interrupts or load them from the given shared object.",
+	.args = analyze_esil_int_list_load_args,
+};
+
+static const RzCmdDescArg analyze_esil_int_remove_args[] = {
+	{
+		.name = "interrupt number",
+		.type = RZ_CMD_ARG_TYPE_NUM,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_int_remove_help = {
+	.summary = "Remove ESIL interrupt and free it if needed.",
+	.args = analyze_esil_int_remove_args,
+};
+
+static const RzCmdDescHelp aea_help = {
+	.summary = "ESIL emulation to retrieve arguments.",
+};
+static const RzCmdDescDetailEntry analyze_esil_insn_access_Flag_detail_entries[] = {
+	{ .text = "A", .arg_str = NULL, .comment = "Interpret the [len] parameter as number of bytes. Not as number of instructions." },
+	{ 0 },
+};
+
+static const RzCmdDescDetailEntry analyze_esil_insn_access_Options_detail_entries[] = {
+	{ .text = "*", .arg_str = NULL, .comment = "Create mem.* flags for memory accesses." },
+	{ .text = "r", .arg_str = NULL, .comment = "Show regs read in N instructions." },
+	{ .text = "w", .arg_str = NULL, .comment = "Show regs written in N instructions." },
+	{ .text = "n", .arg_str = NULL, .comment = "Show regs not written in N instructions." },
+	{ .text = "b", .arg_str = NULL, .comment = "Show regs used in current basic block. The [len] parameter, if not 0, is interpreted as address." },
+	{ .text = "f", .arg_str = NULL, .comment = "Show regs used in current function." },
+	{ .text = "d", .arg_str = NULL, .comment = "Show memory and register access." },
+	{ 0 },
+};
+
+static const RzCmdDescDetailEntry analyze_esil_insn_access_Legend_detail_entries[] = {
+	{ .text = "I", .arg_str = NULL, .comment = "input registers (read before being set)" },
+	{ .text = "A", .arg_str = NULL, .comment = "all regs accessed" },
+	{ .text = "R", .arg_str = NULL, .comment = "register values read" },
+	{ .text = "W", .arg_str = NULL, .comment = "registers written" },
+	{ .text = "N", .arg_str = NULL, .comment = "read but never written" },
+	{ .text = "V", .arg_str = NULL, .comment = "values" },
+	{ .text = "@R", .arg_str = NULL, .comment = "memreads" },
+	{ .text = "@W", .arg_str = NULL, .comment = "memwrites" },
+	{ .text = "NOTE:", .arg_str = NULL, .comment = "mem{reads,writes} with PIC only fetch the offset" },
+	{ 0 },
+};
+static const RzCmdDescDetail analyze_esil_insn_access_details[] = {
+	{ .name = "Flag", .entries = analyze_esil_insn_access_Flag_detail_entries },
+	{ .name = "Options", .entries = analyze_esil_insn_access_Options_detail_entries },
+	{ .name = "Legend", .entries = analyze_esil_insn_access_Legend_detail_entries },
+	{ 0 },
+};
+static const char *analyze_esil_insn_access_type_choices[] = { "d", "*", "r", "w", "n", "b", "f", NULL };
+static const RzCmdDescArg analyze_esil_insn_access_args[] = {
+	{
+		.name = "len",
+		.type = RZ_CMD_ARG_TYPE_NUM,
+		.default_value = "0",
+
+	},
+	{
+		.name = "type",
+		.type = RZ_CMD_ARG_TYPE_CHOICES,
+		.default_value = "d",
+		.choices.choices = analyze_esil_insn_access_type_choices,
+
+	},
+	{
+		.name = "A",
+		.type = RZ_CMD_ARG_TYPE_OPTION,
+		.optional = true,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp analyze_esil_insn_access_help = {
+	.summary = "Show register and memory access of the next [len] instructions or bytes.",
+	.details = analyze_esil_insn_access_details,
+	.args = analyze_esil_insn_access_args,
 };
 
 static const RzCmdDescHelp b_help = {
@@ -19431,7 +19655,7 @@ RZ_IPI void rzshell_cmddescs_init(RzCore *core) {
 	RzCmdDesc *push_escaped_cd = rz_cmd_desc_argv_new(core->rcmd, root_cd, "<", rz_push_escaped_handler, &push_escaped_help);
 	rz_warn_if_fail(push_escaped_cd);
 
-	RzCmdDesc *cmd_analysis_cd = rz_cmd_desc_oldinput_new(core->rcmd, root_cd, "a", rz_cmd_analysis, &cmd_analysis_help);
+	RzCmdDesc *cmd_analysis_cd = rz_cmd_desc_group_new(core->rcmd, root_cd, "a", NULL, NULL, &cmd_analysis_help);
 	rz_warn_if_fail(cmd_analysis_cd);
 	RzCmdDesc *aa_cd = rz_cmd_desc_group_new(core->rcmd, cmd_analysis_cd, "aa", rz_analyze_simple_handler, &analyze_simple_help, &aa_help);
 	rz_warn_if_fail(aa_cd);
@@ -20286,6 +20510,41 @@ RZ_IPI void rzshell_cmddescs_init(RzCore *core) {
 
 	RzCmdDesc *list_plugins_cd = rz_cmd_desc_argv_state_new(core->rcmd, cmd_analysis_cd, "aL", RZ_OUTPUT_MODE_STANDARD | RZ_OUTPUT_MODE_JSON, rz_list_plugins_handler, &list_plugins_help);
 	rz_warn_if_fail(list_plugins_cd);
+
+	RzCmdDesc *ae_cd = rz_cmd_desc_group_new(core->rcmd, cmd_analysis_cd, "ae", rz_analyze_esil_eval_expr_handler, &analyze_esil_eval_expr_help, &ae_help);
+	rz_warn_if_fail(ae_cd);
+	RzCmdDesc *analyze_esil_expr_help_cd = rz_cmd_desc_argv_new(core->rcmd, ae_cd, "aeH", rz_analyze_esil_expr_help_handler, &analyze_esil_expr_help_help);
+	rz_warn_if_fail(analyze_esil_expr_help_cd);
+
+	RzCmdDesc *analyze_esil_emulate_block_cd = rz_cmd_desc_argv_new(core->rcmd, ae_cd, "aeb", rz_analyze_esil_emulate_block_handler, &analyze_esil_emulate_block_help);
+	rz_warn_if_fail(analyze_esil_emulate_block_cd);
+
+	RzCmdDesc *analyze_esil_set_pc_cd = rz_cmd_desc_argv_new(core->rcmd, ae_cd, "aepc", rz_analyze_esil_set_pc_handler, &analyze_esil_set_pc_help);
+	rz_warn_if_fail(analyze_esil_set_pc_cd);
+
+	RzCmdDesc *aek_cd = rz_cmd_desc_group_new(core->rcmd, ae_cd, "aek", rz_analyze_esil_sdb_query_handler, &analyze_esil_sdb_query_help, &aek_help);
+	rz_warn_if_fail(aek_cd);
+	RzCmdDesc *analyze_esil_sdb_reset_cd = rz_cmd_desc_argv_new(core->rcmd, aek_cd, "aek-", rz_analyze_esil_sdb_reset_handler, &analyze_esil_sdb_reset_help);
+	rz_warn_if_fail(analyze_esil_sdb_reset_cd);
+
+	RzCmdDesc *analyze_esil_eval_opcode_expr_cd = rz_cmd_desc_argv_new(core->rcmd, ae_cd, "aex", rz_analyze_esil_eval_opcode_expr_handler, &analyze_esil_eval_opcode_expr_help);
+	rz_warn_if_fail(analyze_esil_eval_opcode_expr_cd);
+
+	RzCmdDesc *aef_cd = rz_cmd_desc_group_new(core->rcmd, ae_cd, "aef", rz_analyze_esil_emu_fcn_handler, &analyze_esil_emu_fcn_help, &aef_help);
+	rz_warn_if_fail(aef_cd);
+	RzCmdDesc *analyze_esil_emu_fcn_find_args_cd = rz_cmd_desc_argv_new(core->rcmd, aef_cd, "aefa", rz_analyze_esil_emu_fcn_find_args_handler, &analyze_esil_emu_fcn_find_args_help);
+	rz_warn_if_fail(analyze_esil_emu_fcn_find_args_cd);
+
+	RzCmdDesc *ael_cd = rz_cmd_desc_group_new(core->rcmd, ae_cd, "ael", NULL, NULL, &ael_help);
+	rz_warn_if_fail(ael_cd);
+	RzCmdDesc *analyze_esil_int_list_load_cd = rz_cmd_desc_argv_new(core->rcmd, ael_cd, "aeli", rz_analyze_esil_int_list_load_handler, &analyze_esil_int_list_load_help);
+	rz_warn_if_fail(analyze_esil_int_list_load_cd);
+
+	RzCmdDesc *analyze_esil_int_remove_cd = rz_cmd_desc_argv_new(core->rcmd, ael_cd, "aelir", rz_analyze_esil_int_remove_handler, &analyze_esil_int_remove_help);
+	rz_warn_if_fail(analyze_esil_int_remove_cd);
+
+	RzCmdDesc *aea_cd = rz_cmd_desc_group_modes_new(core->rcmd, ae_cd, "aea", RZ_OUTPUT_MODE_STANDARD | RZ_OUTPUT_MODE_JSON, rz_analyze_esil_insn_access_handler, &analyze_esil_insn_access_help, &aea_help);
+	rz_warn_if_fail(aea_cd);
 
 	RzCmdDesc *b_cd = rz_cmd_desc_group_state_new(core->rcmd, root_cd, "b", RZ_OUTPUT_MODE_STANDARD | RZ_OUTPUT_MODE_JSON | RZ_OUTPUT_MODE_RIZIN, rz_block_handler, &block_help, &b_help);
 	rz_warn_if_fail(b_cd);

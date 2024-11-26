@@ -2,8 +2,12 @@
 // SPDX-FileCopyrightText: 2009-2021 maijin <maijin21@gmail.com>
 // SPDX-License-Identifier: LGPL-3.0-only
 
+#include <rz_cmd.h>
 #include <rz_core.h>
+#include <rz_util/rz_assert.h>
+#include <rz_util/rz_num.h>
 #include <rz_util/rz_graph_drawable.h>
+#include <rz_util/rz_log.h>
 
 #include "../core_private.h"
 
@@ -37,45 +41,6 @@ static const char *help_msg_a[] = {
 	"as", "[?] [num]", "analyze syscall using dbg.reg",
 	"av", "[?] [.]", "show vtables",
 	"ax", "[?]", "manage refs/xrefs (see also afx?)",
-	NULL
-};
-
-static const char *help_msg_ae[] = {
-	"Usage:", "ae[idesr?] [arg]", "ESIL code emulation",
-	"ae", " [expr]", "evaluate ESIL expression",
-	"ae?", "", "show this help",
-	"ae??", "", "show ESIL help",
-	"ae[aA]", "[f] [count]", "analyse esil accesses (regs, mem..)",
-	"aeC", "[arg0 arg1..] @ addr", "appcall in esil",
-	"aec", "[?]", "continue until ^C",
-	"aecb", "", "continue back until breakpoint",
-	"aecs", "", "continue until syscall",
-	"aecc", "", "continue until call",
-	"aecu", " [addr]", "continue until address",
-	"aecue", " [esil]", "continue until esil expression match",
-	"aef", " [addr]", "emulate function",
-	"aefa", " [addr]", "emulate function to find out args in given or current offset",
-	"aei", "", "initialize ESIL VM state (aei- to deinitialize)",
-	"aeim", " [addr] [size] [name]", "initialize ESIL VM stack (aeim- remove)",
-	"aeip", "", "initialize ESIL program counter to curseek",
-	"aek", " [query]", "perform sdb query on ESIL.info",
-	"aek-", "", "resets the ESIL.info sdb instance",
-	"aeli", "", "list loaded ESIL interrupts",
-	"aeli", " [file]", "load ESIL interrupts from shared object",
-	"aelir", " [interrupt number]", "remove ESIL interrupt and free it if needed",
-	"aepc", " [addr]", "change esil PC to this address",
-	"aes", "", "perform emulated debugger step",
-	"aesp", " [X] [N]", "evaluate N instr from offset X",
-	"aesb", "", "step back",
-	"aeso", " ", "step over",
-	"aesou", " [addr]", "step over until given address",
-	"aess", " ", "step skip (in case of CALL, just skip, instead of step into)",
-	"aesu", " [addr]", "step until given address",
-	"aesue", " [esil]", "step until esil expression match",
-	"aesuo", " [optype]", "step until given opcode type",
-	"aets", "[?]", "ESIL Trace session",
-	"aex", " [hex]", "evaluate opcode expression",
-	"aez", "[?]", "RzIL Emulation",
 	NULL
 };
 
@@ -141,30 +106,6 @@ static const char *help_detail_ae[] = {
 	"$js", "", "internal flag: jump-target-set",
 	// DEPRECATED "$r", "", "internal flag: jump-sign",
 	"$$", "", "internal flag: pc address",
-	NULL
-};
-
-static const char *help_msg_aea[] = {
-	"Examples:", "aea", " show regs and memory accesses used in a range",
-	"aea", "  [ops]", "Show regs/memory accesses used in N instructions ",
-	"aea*", " [ops]", "Create mem.* flags for memory accesses",
-	"aeab", "", "Show regs used in current basic block",
-	"aeaf", "", "Show regs used in current function",
-	"aear", " [ops]", "Show regs read in N instructions",
-	"aeaw", " [ops]", "Show regs written in N instructions",
-	"aean", " [ops]", "Show regs not written in N instructions",
-	"aeaj", " [ops]", "Show aea output in JSON format",
-	"aeA", "  [len]", "Show regs used in N bytes (subcommands are the same)",
-	"Legend:", "", "",
-	"I", "", "input registers (read before being set)",
-	"A", "", "all regs accessed",
-	"R", "", "register values read",
-	"W", "", "registers written",
-	"N", "", "read but never written",
-	"V", "", "values",
-	"@R", "", "memreads",
-	"@W", "", "memwrites",
-	"NOTE:", "", "mem{reads,writes} with PIC only fetch the offset",
 	NULL
 };
 
@@ -1345,8 +1286,7 @@ static bool _aeli_iter(void *user, const ut64 key, const void *value) {
 	return true;
 }
 
-static void rz_analysis_aefa(RzCore *core, const char *arg) {
-	ut64 to = rz_num_math(core->num, arg);
+static void rz_analysis_aefa(RzCore *core, ut64 to) {
 	ut64 at, from = core->offset;
 	RzAnalysisFunction *fcn = rz_analysis_get_fcn_in(core->analysis, to, -1);
 	if (!from || from == UT64_MAX) {
@@ -1439,232 +1379,6 @@ static void __analysis_esil_function(RzCore *core, ut64 addr) {
 		RZ_LOG_ERROR("core: Cannot find function at 0x%08" PFMT64x "\n", addr);
 	}
 	rz_analysis_esil_free(core->analysis->esil);
-}
-
-static void cmd_analysis_esil(RzCore *core, const char *input) {
-	RzAnalysisEsil *esil = core->analysis->esil;
-	int stacksize = rz_config_get_i(core->config, "esil.stack.depth");
-	int iotrap = rz_config_get_i(core->config, "esil.iotrap");
-	int romem = rz_config_get_i(core->config, "esil.romem");
-	int stats = rz_config_get_i(core->config, "esil.stats");
-	int noNULL = rz_config_get_i(core->config, "esil.noNULL");
-	unsigned int addrsize = rz_config_get_i(core->config, "esil.addr.size");
-
-	switch (input[0]) {
-	case 'p':
-		switch (input[1]) {
-		case 'c': // "aepc"
-			if (input[2] == ' ' || input[2] == '=') {
-				// seek to this address
-				ut64 pc_val = rz_num_math(core->num, rz_str_trim_head_ro(input + 3));
-				rz_core_analysis_set_reg(core, "PC", pc_val);
-			} else {
-				RZ_LOG_ERROR("core: Missing argument\n");
-			}
-			break;
-		default:
-			rz_core_cmd_help(core, help_msg_ae);
-			break;
-		}
-		break;
-	case '*': // "ae*"
-		// XXX: this is wip, not working atm
-		if (core->analysis->esil) {
-			rz_cons_printf("trap: %d\n", core->analysis->esil->trap);
-			rz_cons_printf("trap-code: %d\n", core->analysis->esil->trap_code);
-		} else {
-			RZ_LOG_ERROR("core: esil vm not initialized. run `aei`\n");
-		}
-		break;
-	case ' ': // "ae "
-		// rz_analysis_esil_eval (core->analysis, input+1);
-		if (!esil && !(core->analysis->esil = esil = rz_analysis_esil_new(stacksize, iotrap, addrsize))) {
-			return;
-		}
-		rz_analysis_esil_setup(esil, core->analysis, romem, stats, noNULL); // setup io
-		rz_analysis_esil_set_pc(esil, core->offset);
-		rz_analysis_esil_parse(esil, input + 1);
-		rz_core_esil_dumpstack(esil);
-		rz_analysis_esil_stack_free(esil);
-		break;
-	case 'k': // "aek"
-		switch (input[1]) {
-		case '\0': // "aek"
-			input = "123*";
-			/* fall through */
-		case ' ': // "aek "
-			if (esil && esil->stats) {
-				char *out = sdb_querys(esil->stats, NULL, 0, input + 2);
-				if (out) {
-					rz_cons_println(out);
-					free(out);
-				}
-			} else {
-				RZ_LOG_ERROR("core: esil.stats is empty. Run 'aei'\n");
-			}
-			break;
-		case '-': // "aek-"
-			if (esil) {
-				sdb_reset(esil->stats);
-			}
-			break;
-		}
-		break;
-	case 'l': // ael commands
-		switch (input[1]) {
-		case 'i': // aeli interrupts
-			switch (input[2]) {
-			case ' ': // "aeli" with arguments
-				if (!rz_analysis_esil_load_interrupts_from_lib(esil, input + 3)) {
-					RZ_LOG_ERROR("core: Failed to load interrupts from '%s'.\n", input + 3);
-				}
-				break;
-			case 0: // "aeli" with no args
-				if (esil && esil->interrupts) {
-					ht_up_foreach(esil->interrupts, _aeli_iter, NULL);
-				}
-				break;
-			case 'r': // "aelir"
-				if (esil && esil->interrupts) {
-					ht_up_delete(esil->interrupts, rz_num_math(core->num, input + 3));
-				}
-				break;
-			}
-		}
-		break;
-	case 'b': // "aeb"
-		rz_core_analysis_esil_emulate_bb(core);
-		break;
-	case 'f': // "aef"
-		if (input[1] == 'a') { // "aefa"
-			rz_analysis_aefa(core, rz_str_trim_head_ro(input + 2));
-		} else { // This should be aefb -> because its emulating all the bbs
-			__analysis_esil_function(core, core->offset);
-		}
-		break;
-	case 'A': // "aeA"
-		if (input[1] == '?') {
-			rz_core_cmd_help(core, help_msg_aea);
-		} else if (input[1] == 'r') {
-			cmd_aea(core, 1 + (1 << 1), core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == 'w') {
-			cmd_aea(core, 1 + (1 << 2), core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == 'n') {
-			cmd_aea(core, 1 + (1 << 3), core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == 'j') {
-			cmd_aea(core, 1 + (1 << 4), core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == '*') {
-			cmd_aea(core, 1 + (1 << 5), core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == 'f') {
-			RzAnalysisFunction *fcn = rz_analysis_get_fcn_in(core->analysis, core->offset, -1);
-			if (fcn) {
-				cmd_aea(core, 1, rz_analysis_function_min_addr(fcn), rz_analysis_function_linear_size(fcn));
-			}
-		} else {
-			cmd_aea(core, 1, core->offset, (int)rz_num_math(core->num, input + 2));
-		}
-		break;
-	case 'a': // "aea"
-	{
-		RzReg *reg = core->analysis->reg;
-		ut64 pc = rz_reg_getv(reg, "PC");
-		RzAnalysisOp *op = rz_core_analysis_op(core, pc, 0);
-		if (!op) {
-			break;
-		}
-		ut64 newPC = core->offset + op->size;
-		rz_reg_setv(reg, "PC", newPC);
-		if (input[1] == '?') {
-			rz_core_cmd_help(core, help_msg_aea);
-		} else if (input[1] == 'r') {
-			cmd_aea(core, 1 << 1, core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == 'w') {
-			cmd_aea(core, 1 << 2, core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == 'n') {
-			cmd_aea(core, 1 << 3, core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == 'j') {
-			cmd_aea(core, 1 << 4, core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == '*') {
-			cmd_aea(core, 1 << 5, core->offset, rz_num_math(core->num, input + 2));
-		} else if (input[1] == 'b') { // "aeab"
-			bool json = input[2] == 'j';
-			int a = json ? 3 : 2;
-			ut64 addr = (input[a] == ' ') ? rz_num_math(core->num, input + a) : core->offset;
-			RzList *l = rz_analysis_get_blocks_in(core->analysis, addr);
-			RzAnalysisBlock *b;
-			RzListIter *iter;
-			rz_list_foreach (l, iter, b) {
-				int mode = json ? (1 << 4) : 1;
-				cmd_aea(core, mode, b->addr, b->size);
-				break;
-			}
-		} else if (input[1] == 'f') {
-			RzAnalysisFunction *fcn = rz_analysis_get_fcn_in(core->analysis, core->offset, -1);
-			// "aeafj"
-			if (fcn) {
-				switch (input[2]) {
-				case 'j': // "aeafj"
-					cmd_aea(core, 1 << 4, rz_analysis_function_min_addr(fcn), rz_analysis_function_linear_size(fcn));
-					break;
-				default:
-					cmd_aea(core, 1, rz_analysis_function_min_addr(fcn), rz_analysis_function_linear_size(fcn));
-					break;
-				}
-				break;
-			}
-		} else if (input[1] == 'b') { // "aeab"
-			RzAnalysisBlock *bb = rz_analysis_find_most_relevant_block_in(core->analysis, core->offset);
-			if (bb) {
-				switch (input[2]) {
-				case 'j': // "aeabj"
-					cmd_aea(core, 1 << 4, bb->addr, bb->size);
-					break;
-				default:
-					cmd_aea(core, 1, bb->addr, bb->size);
-					break;
-				}
-			}
-		} else {
-			const char *arg = input[1] ? input + 2 : "";
-			ut64 len = rz_num_math(core->num, arg);
-			cmd_aea(core, 0, core->offset, len);
-		}
-		rz_reg_setv(reg, "PC", pc);
-	} break;
-	case 'x': { // "aex"
-		char *hex;
-		int ret, bufsz;
-
-		input = rz_str_trim_head_ro(input + 1);
-		hex = rz_str_dup(input);
-		if (!hex) {
-			break;
-		}
-
-		RzAnalysisOp aop = RZ_EMPTY;
-		bufsz = rz_hex_str2bin(hex, (ut8 *)hex);
-		rz_analysis_op_init(&aop);
-		ret = rz_analysis_op(core->analysis, &aop, core->offset,
-			(const ut8 *)hex, bufsz, RZ_ANALYSIS_OP_MASK_ESIL);
-		if (ret > 0) {
-			const char *str = RZ_STRBUF_SAFEGET(&aop.esil);
-			char *str2 = rz_str_newf(" %s", str);
-			cmd_analysis_esil(core, str2);
-			free(str2);
-		}
-		rz_analysis_op_fini(&aop);
-		break;
-	}
-	case '?': // "ae?"
-		if (input[1] == '?') {
-			rz_core_cmd_help(core, help_detail_ae);
-			break;
-		}
-		/* fallthrough */
-	default:
-		rz_core_cmd_help(core, help_msg_ae);
-		break;
-	}
 }
 
 static bool print_cmd_analysis_after_traps_print(RZ_NONNULL RzCore *core, ut64 n_bytes) {
@@ -2065,29 +1779,6 @@ RZ_IPI RzCmdStatus rz_analysis_global_variable_retype_handler(RzCore *core, int 
 RZ_API void rz_core_cmd_show_analysis_help(RZ_NONNULL RzCore *core) {
 	rz_return_if_fail(core);
 	rz_core_cmd_help(core, help_msg_a);
-}
-
-RZ_IPI int rz_cmd_analysis(void *data, const char *input) {
-	RzCore *core = (RzCore *)data;
-	ut32 tbs = core->blocksize;
-	switch (input[0]) {
-	case 'e': cmd_analysis_esil(core, input + 1); break; // "ae"
-	case '*': // "a*"
-		rz_core_cmd0_rzshell(core, "afl*");
-		rz_core_cmd0_rzshell(core, "ah*");
-		rz_core_cmd0_rzshell(core, "ax*");
-		break;
-	default:
-		rz_core_cmd_help(core, help_msg_a);
-		break;
-	}
-	if (tbs != core->blocksize) {
-		rz_core_block_size(core, tbs);
-	}
-	if (rz_cons_is_breaked()) {
-		rz_cons_clear_line(1);
-	}
-	return 0;
 }
 
 RZ_IPI RzCmdStatus rz_analysis_function_blocks_list_handler(RzCore *core, int argc, const char **argv, RzCmdStateOutput *state) {
@@ -6561,5 +6252,201 @@ RZ_IPI RzCmdStatus rz_analysis_data_trampoline_handler(RzCore *core, int argc, c
 
 	int bits = rz_config_get_i(core->config, "asm.bits");
 	print_trampolines(core, minimum, maximum, bits / 8);
+	return RZ_CMD_STATUS_OK;
+}
+
+static RzCmdStatus emulate_esil_expr(RzCore *core, const char *expr) {
+	int stacksize = rz_config_get_i(core->config, "esil.stack.depth");
+	int iotrap = rz_config_get_i(core->config, "esil.iotrap");
+	int romem = rz_config_get_i(core->config, "esil.romem");
+	int stats = rz_config_get_i(core->config, "esil.stats");
+	int noNULL = rz_config_get_i(core->config, "esil.noNULL");
+	unsigned int addrsize = rz_config_get_i(core->config, "esil.addr.size");
+
+	RzAnalysisEsil *esil = core->analysis->esil;
+
+	if (!esil && !(core->analysis->esil = esil = rz_analysis_esil_new(stacksize, iotrap, addrsize))) {
+		RZ_LOG_ERROR("Failed to init ESIL VM.\n");
+		return RZ_CMD_STATUS_ERROR;
+	}
+	rz_analysis_esil_setup(esil, core->analysis, romem, stats, noNULL); // setup io
+	rz_analysis_esil_set_pc(esil, core->offset);
+	rz_analysis_esil_parse(esil, expr);
+	rz_core_esil_dumpstack(esil);
+	rz_analysis_esil_stack_free(esil);
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_eval_expr_handler(RzCore *core, int argc, const char **argv) {
+	return emulate_esil_expr(core, argv[1]);
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_set_pc_handler(RzCore *core, int argc, const char **argv) {
+	ut64 pc_val = rz_num_math(core->num, argv[1]);
+	rz_core_analysis_set_reg(core, "PC", pc_val);
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_sdb_query_handler(RzCore *core, int argc, const char **argv) {
+	RzAnalysisEsil *esil = core->analysis->esil;
+	if (!esil || !esil->stats) {
+		RZ_LOG_ERROR("core: esil.stats is empty. Run 'aei'\n");
+		return RZ_CMD_STATUS_ERROR;
+	}
+	char *out = sdb_querys(esil->stats, NULL, 0, argv[1]);
+	if (out) {
+		rz_cons_println(out);
+		free(out);
+	}
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_sdb_reset_handler(RzCore *core, int argc, const char **argv) {
+	RzAnalysisEsil *esil = core->analysis->esil;
+	if (esil) {
+		sdb_reset(esil->stats);
+	}
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_emulate_block_handler(RzCore *core, int argc, const char **argv) {
+	rz_core_analysis_esil_emulate_bb(core);
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_eval_opcode_expr_handler(RzCore *core, int argc, const char **argv) {
+	const char *hex = argv[1];
+
+	RzAnalysisOp aop = RZ_EMPTY;
+	rz_analysis_op_init(&aop);
+
+	int bufsz = rz_hex_str2bin(hex, (ut8 *)hex);
+	int ret = rz_analysis_op(core->analysis, &aop, core->offset,
+		(const ut8 *)hex, bufsz, RZ_ANALYSIS_OP_MASK_ESIL);
+	RzCmdStatus status = RZ_CMD_STATUS_ERROR;
+	if (ret > 0) {
+		const char *str = RZ_STRBUF_SAFEGET(&aop.esil);
+		status = emulate_esil_expr(core, str);
+	} else {
+		RZ_LOG_ERROR("Failed to decode bytes.\n");
+	}
+	rz_analysis_op_fini(&aop);
+	return status;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_emu_fcn_handler(RzCore *core, int argc, const char **argv) {
+	ut64 addr = argc == 1 ? core->offset : rz_num_math(core->num, argv[1]);
+	__analysis_esil_function(core, addr);
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_emu_fcn_find_args_handler(RzCore *core, int argc, const char **argv) {
+	ut64 addr = argc == 1 ? core->offset : rz_num_math(core->num, argv[1]);
+	rz_analysis_aefa(core, addr);
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_expr_help_handler(RzCore *core, int argc, const char **argv) {
+	rz_core_cmd_help(core, help_detail_ae);
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_int_list_load_handler(RzCore *core, int argc, const char **argv) {
+	RzAnalysisEsil *esil = core->analysis->esil;
+	if (!esil) {
+		RZ_LOG_ERROR("ESIL VM is not initialized. Did you run 'aei'?\n");
+		return RZ_CMD_STATUS_ERROR;
+	}
+
+	if (argc == 1) {
+		// List interrupts
+		if (esil->interrupts) {
+			ht_up_foreach(esil->interrupts, _aeli_iter, NULL);
+		}
+		return RZ_CMD_STATUS_OK;
+	}
+
+	// Load interrupts
+	if (!rz_analysis_esil_load_interrupts_from_lib(esil, argv[1])) {
+		RZ_LOG_ERROR("Failed to load interrupts from '%s'.\n", argv[1]);
+	}
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_int_remove_handler(RzCore *core, int argc, const char **argv) {
+	RzAnalysisEsil *esil = core->analysis->esil;
+	if (esil && esil->interrupts) {
+		ht_up_delete(esil->interrupts, rz_num_math(core->num, argv[1]));
+	}
+	return RZ_CMD_STATUS_OK;
+}
+
+RZ_IPI RzCmdStatus rz_analyze_esil_insn_access_handler(RzCore *core, int argc, const char **argv, RzOutputMode mode) {
+	int aea_mode = ((mode == RZ_OUTPUT_MODE_JSON) ? (1 << 4) : 0);
+	int len = rz_num_math(core->num, argv[1]);
+	bool is_aeA = argc == 4;
+	if (is_aeA) {
+		aea_mode |= 1;
+	}
+
+	// Don't ask me why this has to be done. I am just the janitor.
+	RzReg *reg = core->analysis->reg;
+	ut64 pc = rz_reg_getv(reg, "PC");
+	if (!is_aeA) {
+		RzAnalysisOp *op = rz_core_analysis_op(core, pc, 0);
+		if (!op) {
+			RZ_LOG_ERROR("Failed to decode at current pc.\n");
+			return RZ_CMD_STATUS_ERROR;
+		}
+		ut64 newPC = core->offset + op->size;
+		rz_reg_setv(reg, "PC", newPC);
+	}
+
+	const char cmd_type = argv[2][0];
+	switch (cmd_type) {
+	default:
+		RZ_LOG_ERROR("Unhandled option: '%c'\n", cmd_type);
+		return RZ_CMD_STATUS_ERROR;
+	case 'r':
+		aea_mode |= (1 << 1);
+		break;
+	case 'w':
+		aea_mode |= (1 << 2);
+		break;
+	case 'n':
+		aea_mode |= (1 << 3);
+		break;
+	case '*':
+		aea_mode |= (1 << 5);
+		break;
+	case 'b': {
+		ut64 addr = len != 0 ? len : core->offset;
+		aea_mode |= (1 << 1);
+		RzAnalysisBlock *b;
+		RzListIter *iter;
+		RzList *l = rz_analysis_get_blocks_in(core->analysis, addr);
+		rz_list_foreach (l, iter, b) {
+			cmd_aea(core, aea_mode, b->addr, b->size);
+			break;
+		}
+		return RZ_CMD_STATUS_OK;
+	}
+	case 'f': {
+		aea_mode |= (1 << 1);
+		RzAnalysisFunction *fcn = rz_analysis_get_fcn_in(core->analysis, core->offset, -1);
+		if (!fcn) {
+			RZ_LOG_ERROR("Failed to decode function at 0x%" PFMT64x "\n", core->offset)
+			return RZ_CMD_STATUS_ERROR;
+		}
+		cmd_aea(core, aea_mode, rz_analysis_function_min_addr(fcn), rz_analysis_function_linear_size(fcn));
+		return RZ_CMD_STATUS_OK;
+	}
+	case 'd':
+		break;
+	}
+	cmd_aea(core, aea_mode, core->offset, len);
+	if (!is_aeA) {
+		rz_reg_setv(reg, "PC", pc);
+	}
 	return RZ_CMD_STATUS_OK;
 }
