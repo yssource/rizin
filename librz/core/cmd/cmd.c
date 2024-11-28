@@ -44,15 +44,6 @@ static const char *help_msg_vertical_bar[] = {
 	NULL
 };
 
-static const char *help_msg_v[] = {
-	"Usage:", "v[*i]", "",
-	"v", "", "open visual panels",
-	"v", " test", "load saved layout with name test",
-	"v=", " test", "save current layout with name test",
-	"vi", " test", "open the file test in 'cfg.editor'",
-	NULL
-};
-
 RZ_API void rz_core_cmd_help(const RzCore *core, const char *help[]) {
 	rz_cons_cmd_help(help, core->print->flags & RZ_PRINT_FLAGS_COLOR);
 }
@@ -383,60 +374,6 @@ RZ_IPI void rz_core_kuery_print(RzCore *core, const char *k) {
 		rz_cons_print(out);
 	}
 	free(out);
-}
-
-RZ_IPI int rz_cmd_panels(void *data, const char *input) {
-	RzCore *core = (RzCore *)data;
-	RzCoreVisual *visual = core->visual;
-	if (core->vmode) {
-		return false;
-	}
-	if (!rz_cons_is_interactive()) {
-		RZ_LOG_ERROR("core: Panel mode requires scr.interactive=true.\n");
-		return false;
-	}
-	char *sp = strchr(input, ' ');
-	switch (input[0]) {
-	case ' ': // "v [name]"
-		if (visual->panels_root->active_tab) {
-			rz_load_panels_layout(core, input + 1);
-		}
-		rz_config_set(core->config, "scr.layout", input + 1);
-		return true;
-	case '=': // "v= [name]"
-		rz_save_panels_layout(core, input + 1);
-		rz_config_set(core->config, "scr.layout", input + 1);
-		return true;
-	case 'i': // "vi [file]"
-		if (sp) {
-			char *r = rz_core_editor(core, sp + 1, NULL);
-			if (r) {
-				free(r);
-			} else {
-				RZ_LOG_ERROR("core: Cannot open file (%s)\n", sp + 1);
-			}
-		}
-		////rz_sys_cmdf ("v%s", input);
-		return false;
-	case 0:
-		rz_core_visual_panels_root(core, visual->panels_root);
-		return true;
-	default:
-		rz_core_cmd_help(core, help_msg_v);
-		return false;
-	}
-}
-
-RZ_IPI int rz_cmd_visual(void *data, const char *input) {
-	RzCore *core = (RzCore *)data;
-	if (core->http_up) {
-		return false;
-	}
-	if (!rz_cons_is_interactive()) {
-		RZ_LOG_ERROR("core: Visual mode requires scr.interactive=true.\n");
-		return false;
-	}
-	return rz_core_visual((RzCore *)data, input);
 }
 
 RZ_IPI RzCmdStatus rz_push_escaped_handler(RzCore *core, int argc, const char **argv) {
@@ -5282,8 +5219,6 @@ RZ_API void rz_core_cmd_init(RzCore *core) {
 	} cmds[] = {
 		{ "/", "search kw, pattern aes", rz_cmd_search },
 		{ "p", "print current block", rz_cmd_print },
-		{ "V", "enter visual mode", rz_cmd_visual },
-		{ "v", "enter visual mode", rz_cmd_panels },
 		{ "x", "alias for px", rz_cmd_hexdump },
 	};
 

@@ -66,6 +66,7 @@ static const RzCmdDescDetail query_sdb_get_set_details[2];
 static const RzCmdDescDetail cmd_print_byte_array_details[3];
 static const RzCmdDescDetail pf_details[3];
 static const RzCmdDescDetail print_rising_and_falling_entropy_details[2];
+static const RzCmdDescDetail interactive_visual_details[2];
 static const RzCmdDescDetail write_details[3];
 static const RzCmdDescDetail write_bits_details[2];
 static const RzCmdDescDetail wv_details[2];
@@ -789,6 +790,9 @@ static const RzCmdDescArg type_union_c_args[2];
 static const RzCmdDescArg type_union_c_nl_args[2];
 static const RzCmdDescArg type_xrefs_list_args[2];
 static const RzCmdDescArg type_xrefs_function_args[2];
+static const RzCmdDescArg interactive_visual_args[2];
+static const RzCmdDescArg interactive_panel_load_args[2];
+static const RzCmdDescArg interactive_panel_store_args[2];
 static const RzCmdDescArg write_args[2];
 static const RzCmdDescArg write_bits_args[2];
 static const RzCmdDescArg write_unset_bits_args[2];
@@ -17435,12 +17439,103 @@ static const RzCmdDescHelp type_xrefs_list_all_help = {
 	.args = type_xrefs_list_all_args,
 };
 
-static const RzCmdDescHelp cmd_visual_help = {
-	.summary = "Enter visual mode",
+static const RzCmdDescHelp V_help = {
+	.summary = "Interactive mode",
+};
+static const RzCmdDescDetailEntry interactive_visual_Parameters_detail_entries[] = {
+	{ .text = "V", .arg_str = " <key_sequence>", .comment = "The <key-sequence> argument is a string of keys to press directly after entering the visual mode. See 'VH' or 'VHH' for a full list of valid keys." },
+	{ 0 },
+};
+static const RzCmdDescDetail interactive_visual_details[] = {
+	{ .name = "Parameters", .entries = interactive_visual_Parameters_detail_entries },
+	{ 0 },
+};
+static const RzCmdDescArg interactive_visual_args[] = {
+	{
+		.name = "key-sequence",
+		.type = RZ_CMD_ARG_TYPE_STRING,
+		.flags = RZ_CMD_ARG_FLAG_LAST,
+		.optional = true,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp interactive_visual_help = {
+	.summary = "Enter interactive visual mode",
+	.description = "Use Rizin (mostly) without shell. Scrolling disassembly, debugging, searching or graph views. All with a few keyboard shortcuts.",
+	.details = interactive_visual_details,
+	.args = interactive_visual_args,
 };
 
-static const RzCmdDescHelp cmd_panels_help = {
-	.summary = "Enter visual panel mode",
+static const RzCmdDescArg interactive_visual_help_args[] = {
+	{ 0 },
+};
+static const RzCmdDescHelp interactive_visual_help_help = {
+	.summary = "Show most common keys shortcuts of the visual mode.",
+	.args = interactive_visual_help_args,
+};
+
+static const RzCmdDescArg interactive_visual_help_detail_args[] = {
+	{ 0 },
+};
+static const RzCmdDescHelp interactive_visual_help_detail_help = {
+	.summary = "Show all keys shortcuts of the visual mode.",
+	.args = interactive_visual_help_detail_args,
+};
+
+static const RzCmdDescArg interactive_visual_disas_args[] = {
+	{ 0 },
+};
+static const RzCmdDescHelp interactive_visual_disas_help = {
+	.summary = "Enter interactive visual mode and select next mode (alias for 'V p').",
+	.args = interactive_visual_disas_args,
+};
+
+static const RzCmdDescArg interactive_visual_emu_args[] = {
+	{ 0 },
+};
+static const RzCmdDescHelp interactive_visual_emu_help = {
+	.summary = "Enter interactive visual mode and select the mode after next (alias for 'V pp').",
+	.args = interactive_visual_emu_args,
+};
+
+static const RzCmdDescHelp v_help = {
+	.summary = "Interactive panel mode",
+};
+static const RzCmdDescArg interactive_panel_args[] = {
+	{ 0 },
+};
+static const RzCmdDescHelp interactive_panel_help = {
+	.summary = "Enter interactive panel mode",
+	.args = interactive_panel_args,
+};
+
+static const RzCmdDescArg interactive_panel_load_args[] = {
+	{
+		.name = "name",
+		.type = RZ_CMD_ARG_TYPE_STRING,
+		.flags = RZ_CMD_ARG_FLAG_LAST,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp interactive_panel_load_help = {
+	.summary = "Load panel layout",
+	.args = interactive_panel_load_args,
+};
+
+static const RzCmdDescArg interactive_panel_store_args[] = {
+	{
+		.name = "name",
+		.type = RZ_CMD_ARG_TYPE_STRING,
+		.flags = RZ_CMD_ARG_FLAG_LAST,
+
+	},
+	{ 0 },
+};
+static const RzCmdDescHelp interactive_panel_store_help = {
+	.summary = "Store panel layout",
+	.args = interactive_panel_store_args,
 };
 
 static const RzCmdDescHelp w_help = {
@@ -22950,11 +23045,27 @@ RZ_IPI void rzshell_cmddescs_init(RzCore *core) {
 	RzCmdDesc *type_xrefs_list_all_cd = rz_cmd_desc_argv_new(core->rcmd, tx_cd, "txl", rz_type_xrefs_list_all_handler, &type_xrefs_list_all_help);
 	rz_warn_if_fail(type_xrefs_list_all_cd);
 
-	RzCmdDesc *cmd_visual_cd = rz_cmd_desc_oldinput_new(core->rcmd, root_cd, "V", rz_cmd_visual, &cmd_visual_help);
-	rz_warn_if_fail(cmd_visual_cd);
+	RzCmdDesc *V_cd = rz_cmd_desc_group_new(core->rcmd, root_cd, "V", rz_interactive_visual_handler, &interactive_visual_help, &V_help);
+	rz_warn_if_fail(V_cd);
+	RzCmdDesc *interactive_visual_help_cd = rz_cmd_desc_argv_new(core->rcmd, V_cd, "VH", rz_interactive_visual_help_handler, &interactive_visual_help_help);
+	rz_warn_if_fail(interactive_visual_help_cd);
 
-	RzCmdDesc *cmd_panels_cd = rz_cmd_desc_oldinput_new(core->rcmd, root_cd, "v", rz_cmd_panels, &cmd_panels_help);
-	rz_warn_if_fail(cmd_panels_cd);
+	RzCmdDesc *interactive_visual_help_detail_cd = rz_cmd_desc_argv_new(core->rcmd, V_cd, "VHH", rz_interactive_visual_help_detail_handler, &interactive_visual_help_detail_help);
+	rz_warn_if_fail(interactive_visual_help_detail_cd);
+
+	RzCmdDesc *interactive_visual_disas_cd = rz_cmd_desc_argv_new(core->rcmd, V_cd, "Vp", rz_interactive_visual_disas_handler, &interactive_visual_disas_help);
+	rz_warn_if_fail(interactive_visual_disas_cd);
+
+	RzCmdDesc *interactive_visual_emu_cd = rz_cmd_desc_argv_new(core->rcmd, V_cd, "Vpp", rz_interactive_visual_emu_handler, &interactive_visual_emu_help);
+	rz_warn_if_fail(interactive_visual_emu_cd);
+
+	RzCmdDesc *v_cd = rz_cmd_desc_group_new(core->rcmd, root_cd, "v", rz_interactive_panel_handler, &interactive_panel_help, &v_help);
+	rz_warn_if_fail(v_cd);
+	RzCmdDesc *interactive_panel_load_cd = rz_cmd_desc_argv_new(core->rcmd, v_cd, "vl", rz_interactive_panel_load_handler, &interactive_panel_load_help);
+	rz_warn_if_fail(interactive_panel_load_cd);
+
+	RzCmdDesc *interactive_panel_store_cd = rz_cmd_desc_argv_new(core->rcmd, v_cd, "vs", rz_interactive_panel_store_handler, &interactive_panel_store_help);
+	rz_warn_if_fail(interactive_panel_store_cd);
 
 	RzCmdDesc *w_cd = rz_cmd_desc_group_new(core->rcmd, root_cd, "w", rz_write_handler, &write_help, &w_help);
 	rz_warn_if_fail(w_cd);

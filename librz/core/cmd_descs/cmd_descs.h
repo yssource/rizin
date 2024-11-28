@@ -2371,9 +2371,21 @@ RZ_IPI RzCmdStatus rz_type_xrefs_graph_handler(RzCore *core, int argc, const cha
 // "txl"
 RZ_IPI RzCmdStatus rz_type_xrefs_list_all_handler(RzCore *core, int argc, const char **argv);
 // "V"
-RZ_IPI int rz_cmd_visual(void *data, const char *input);
+RZ_IPI RzCmdStatus rz_interactive_visual_handler(RzCore *core, int argc, const char **argv);
+// "VH"
+RZ_IPI RzCmdStatus rz_interactive_visual_help_handler(RzCore *core, int argc, const char **argv);
+// "VHH"
+RZ_IPI RzCmdStatus rz_interactive_visual_help_detail_handler(RzCore *core, int argc, const char **argv);
+// "Vp"
+RZ_IPI RzCmdStatus rz_interactive_visual_disas_handler(RzCore *core, int argc, const char **argv);
+// "Vpp"
+RZ_IPI RzCmdStatus rz_interactive_visual_emu_handler(RzCore *core, int argc, const char **argv);
 // "v"
-RZ_IPI int rz_cmd_panels(void *data, const char *input);
+RZ_IPI RzCmdStatus rz_interactive_panel_handler(RzCore *core, int argc, const char **argv);
+// "vl"
+RZ_IPI RzCmdStatus rz_interactive_panel_load_handler(RzCore *core, int argc, const char **argv);
+// "vs"
+RZ_IPI RzCmdStatus rz_interactive_panel_store_handler(RzCore *core, int argc, const char **argv);
 // "w"
 RZ_IPI RzCmdStatus rz_write_handler(RzCore *core, int argc, const char **argv);
 // "wB"
