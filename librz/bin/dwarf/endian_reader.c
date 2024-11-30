@@ -6,7 +6,28 @@
 #include "dwarf_private.h"
 #include "../format/elf/elf.h"
 
-RZ_IPI RzBinSection *rz_bin_dwarf_section_by_name(RzBinFile *binfile, const char *sn, bool is_dwo) {
+typedef struct {
+	const char *name;
+	const char *alias[8];
+} SectionAlias;
+
+static const SectionAlias section_alias[] = {
+	{ .name = ".debug_str_offsets", .alias = { ".__DWARF.__debug_str_offs", ".debug_str_offsets.dwo", NULL } },
+	{ .name = ".debug_str", .alias = { ".debug_str.dwo", NULL } },
+	{ .name = ".debug_addr", .alias = { ".debug_addr.dwo", NULL } },
+	{ .name = ".debug_line_str", .alias = { ".debug_line_str.dwo", NULL } },
+	{ .name = ".debug_aranges", .alias = { ".debug_aranges.dwo", NULL } },
+	{ .name = ".debug_loclists", .alias = { ".debug_loclists.dwo", NULL } },
+	{ .name = ".debug_loc", .alias = { ".debug_loc.dwo", NULL } },
+	{ .name = ".debug_rnglists", .alias = { ".debug_rnglists.dwo", NULL } },
+	{ .name = ".debug_ranges", .alias = { ".debug_ranges.dwo", NULL } },
+	{ .name = ".debug_abbrev", .alias = { ".debug_abbrev.dwo", NULL } },
+	{ .name = ".debug_info", .alias = { ".debug_info.dwo", NULL } },
+	{ .name = ".debug_line", .alias = { ".debug_line.dwo", NULL } },
+
+};
+
+RZ_IPI RzBinSection *rz_bin_dwarf_section_by_name(RzBinFile *binfile, const char *sn) {
 	rz_return_val_if_fail(binfile && sn, NULL);
 	void **iter = NULL;
 	RzBinSection *section = NULL;
@@ -15,22 +36,34 @@ RZ_IPI RzBinSection *rz_bin_dwarf_section_by_name(RzBinFile *binfile, const char
 	if (!o || !o->sections || RZ_STR_ISEMPTY(sn)) {
 		return NULL;
 	}
-	char *name = is_dwo ? rz_str_newf("%s.dwo", sn) : rz_str_dup(sn);
-	if (!name) {
-		return NULL;
-	}
 	rz_pvector_foreach (o->sections, iter) {
 		section = *iter;
 		if (!section->name) {
 			continue;
 		}
-		if (RZ_STR_EQ(section->name, name) ||
-			rz_str_endswith(section->name, name + 1)) {
-			result_section = section;
-			break;
+		if (!rz_str_endswith(section->name, sn + 1)) {
+			continue;
+		}
+		result_section = section;
+		goto beach;
+	}
+	for (int i = 0; i < RZ_ARRAY_SIZE(section_alias); ++i) {
+		const SectionAlias *alias = section_alias + i;
+		if (RZ_STR_NE(sn, alias->name)) {
+			continue;
+		}
+		rz_pvector_foreach (o->sections, iter) {
+			section = *iter;
+			for (const char **x = (const char **)alias->alias; RZ_STR_ISNOTEMPTY(*x); ++x) {
+				if (rz_str_endswith(section->name, *x)) {
+					result_section = section;
+					goto beach;
+				}
+			}
 		}
 	}
-	free(name);
+
+beach:
 	return result_section;
 }
 
@@ -140,9 +173,9 @@ static inline void add_relocations(
 	}
 }
 
-RZ_IPI RzBinEndianReader *RzBinEndianReader_from_file(RzBinFile *binfile, const char *sect_name, bool is_dwo) {
+RZ_IPI RzBinEndianReader *RzBinEndianReader_from_file(RzBinFile *binfile, const char *sect_name) {
 	rz_return_val_if_fail(binfile && sect_name, NULL);
-	RzBinSection *section = rz_bin_dwarf_section_by_name(binfile, sect_name, is_dwo);
+	RzBinSection *section = rz_bin_dwarf_section_by_name(binfile, sect_name);
 	OK_OR(section, return NULL);
 	RzBinEndianReader *R = rz_bin_dwarf_section_reader(binfile, section);
 	OK_OR(R, return NULL);
