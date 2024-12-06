@@ -96,13 +96,24 @@ RZ_IPI void rz_core_debug_continue(RzCore *core) {
 	}
 }
 
-RZ_API bool rz_core_debug_continue_until(RzCore *core, ut64 addr, ut64 to) {
+/**
+ * \brief Continue the execution of the debugged binary until \p addr.
+ *
+ * \param core The current core.
+ * \param addr The address to execute to.
+ *
+ * \return true On success.
+ * \return false Otherwise.
+ */
+RZ_API bool rz_core_debug_continue_until(RzCore *core, ut64 addr) {
+#if RZ_BUILD_DEBUG
+	long level = 0;
+	ut64 prev_pc = UT64_MAX;
+	unsigned long steps = 0;
+#endif
 	ut64 pc;
 	if (!strcmp(core->dbg->btalgo, "trace") && core->dbg->arch && !strcmp(core->dbg->arch, "x86") && core->dbg->bits == 4) {
-		unsigned long steps = 0;
-		long level = 0;
 		const char *pc_name = core->dbg->reg->name[RZ_REG_NAME_PC];
-		ut64 prev_pc = UT64_MAX;
 		bool prev_call = false;
 		bool prev_ret = false;
 		const char *sp_name = core->dbg->reg->name[RZ_REG_NAME_SP];
@@ -127,45 +138,51 @@ RZ_API bool rz_core_debug_continue_until(RzCore *core, ut64 addr, ut64 to) {
 				frame->sp = cur_sp;
 				frame->bp = old_sp;
 				rz_list_prepend(core->dbg->call_frames, frame);
-				eprintf("%ld Call from 0x%08" PFMT64x " to 0x%08" PFMT64x " ret 0x%08" PFMT32x "\n",
-					level, prev_pc, pc, ret_addr);
-				level++;
+				RZ_LOG_DEBUG("%ld Call from 0x%08" PFMT64x " to 0x%08" PFMT64x " ret 0x%08" PFMT32x "\n",
+					level++, prev_pc, pc, ret_addr);
 				old_sp = cur_sp;
 				prev_call = false;
 			} else if (prev_ret) {
 				RzDebugFrame *head = rz_list_first(core->dbg->call_frames);
 				if (head && head->addr != pc) {
-					eprintf("*");
+					RZ_LOG_DEBUG("*");
 				} else {
 					rz_list_pop_head(core->dbg->call_frames);
-					eprintf("%ld", level);
-					level--;
+					RZ_LOG_DEBUG("%ld", level--);
 				}
-				eprintf(" Ret from 0x%08" PFMT64x " to 0x%08" PFMT64x "\n",
+				RZ_LOG_DEBUG(" Ret from 0x%08" PFMT64x " to 0x%08" PFMT64x "\n",
 					prev_pc, pc);
 				prev_ret = false;
 			}
+#if RZ_BUILD_DEBUG
 			if (steps % 500 == 0 || pc == addr) {
-				eprintf("At 0x%08" PFMT64x " after %lu steps\n", pc, steps);
+				RZ_LOG_DEBUG("At 0x%08" PFMT64x " after %lu steps\n", pc, steps);
 			}
+#endif
 			if (rz_cons_is_breaked() || rz_debug_is_dead(core->dbg) || pc == addr) {
 				break;
 			}
 			if (is_x86_call(core->dbg, pc)) {
+#if RZ_BUILD_DEBUG
 				prev_pc = pc;
+#endif
 				prev_call = true;
 			} else if (is_x86_ret(core->dbg, pc)) {
+#if RZ_BUILD_DEBUG
 				prev_pc = pc;
+#endif
 				prev_ret = true;
 			}
 			rz_debug_step(core->dbg, 1);
+#if RZ_BUILD_DEBUG
 			steps++;
+#endif
 		}
 		rz_core_reg_update_flags(core);
 		rz_cons_break_pop();
 		return true;
 	}
-	eprintf("Continue until 0x%08" PFMT64x "\n", addr);
+	RZ_LOG_DEBUG("Continue until 0x%08" PFMT64x "\n", addr);
 	rz_reg_arena_swap(core->dbg->reg, true);
 	if (rz_bp_add_sw(core->dbg->bp, addr, 0, RZ_PERM_X)) {
 		if (rz_debug_is_dead(core->dbg)) {
@@ -185,7 +202,7 @@ RZ_API bool rz_core_debug_continue_until(RzCore *core, ut64 addr, ut64 to) {
 RZ_IPI void rz_core_debug_single_step_in(RzCore *core) {
 	if (rz_core_is_debug(core)) {
 		if (core->print->cur_enabled) {
-			rz_core_debug_continue_until(core, core->offset, core->offset + core->print->cur);
+			rz_core_debug_continue_until(core, core->offset);
 			core->print->cur_enabled = 0;
 		} else {
 			rz_core_debug_step_one(core, 1);
