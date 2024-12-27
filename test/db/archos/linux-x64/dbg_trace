@@ -56,12 +56,12 @@ FILE=bins/elf/analysis/calls_x64
 ARGS=-d
 CMDS=<<EOF
 dcu main
-dbt~[6-]  # dbtt here would be nice
+dbt
 echo ----
 dbtj
 echo ----
 dsui call; ds
-dbt~[6-]  # ditto
+dbt~[6-]  # dbtt here would be nice
 echo ----
 dsuir "^(call|ret)\b"; ds
 dbt~[6-]
